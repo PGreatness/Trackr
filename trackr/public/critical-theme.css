@@ -1,0 +1,4 @@
+html { color-scheme: light; }
+html, body { background: #f5f7f3; }
+html[data-theme='dark'] { color-scheme: dark; }
+html[data-theme='dark'], html[data-theme='dark'] body { background: #111713; }
