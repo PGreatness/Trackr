@@ -8,6 +8,9 @@ type EmailPreviewModalProps = {
   status: JobStatus
 }
 
+/**
+ * Displays a read-only email body and lets the user correct its job status.
+ */
 export function EmailPreviewModal({ email, onClose, onMoveEmail, status }: EmailPreviewModalProps) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {

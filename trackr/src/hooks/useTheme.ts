@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
 
+/**
+ * Manages light/dark mode, updates browser chrome, and persists only the theme
+ * preference in local storage. The early `theme-init.js` script prevents flash.
+ */
 export function useTheme() {
   const [darkMode, setDarkMode] = useState(
     () => document.documentElement.dataset.theme === 'dark',

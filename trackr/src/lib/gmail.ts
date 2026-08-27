@@ -50,12 +50,14 @@ const CONDITIONAL_INTERVIEW_MARKERS = [
   'candidates selected for an interview',
 ]
 
+/** Decodes Gmail's URL-safe base64 message-body representation as UTF-8 text. */
 function decodeBase64Url(value: string) {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/')
   const bytes = Uint8Array.from(atob(normalized), (character) => character.charCodeAt(0))
   return new TextDecoder().decode(bytes)
 }
 
+/** Recursively returns the first HTML body found in a MIME message tree. */
 function findHtmlBody(part?: GmailMessagePart): { content: string; isHtml: true } | null {
   if (!part) return null
   if (part.mimeType === 'text/html' && part.body?.data) {
@@ -68,6 +70,9 @@ function findHtmlBody(part?: GmailMessagePart): { content: string; isHtml: true 
   return null
 }
 
+/**
+ * Recursively prefers a plain-text MIME body and falls back to an HTML body.
+ */
 function findBody(part?: GmailMessagePart): { content: string; isHtml: boolean } | null {
   if (!part) return null
   if (part.mimeType === 'text/plain' && part.body?.data) {
@@ -80,6 +85,10 @@ function findBody(part?: GmailMessagePart): { content: string; isHtml: boolean }
   return findHtmlBody(part)
 }
 
+/**
+ * Converts a Gmail message body into normalized display paragraphs, stripping
+ * executable and styling elements when the source is HTML.
+ */
 function toParagraphs(message: GmailMessage) {
   const body = findBody(message.payload)
   let content = body?.content ?? message.snippet ?? 'This message has no readable text content.'
@@ -96,19 +105,26 @@ function toParagraphs(message: GmailMessage) {
   return paragraphs.length ? paragraphs : ['This message has no readable text content.']
 }
 
+/** Looks up a Gmail header case-insensitively and returns an empty fallback. */
 function getHeader(message: GmailMessage, name: string) {
   return message.payload?.headers?.find((header) => header.name.toLowerCase() === name.toLowerCase())?.value ?? ''
 }
 
+/** Extracts a readable display name from a standard RFC-style sender header. */
 function formatSender(sender: string) {
   const nameMatch = sender.match(/^([^<]+)</)
   return nameMatch?.[1].trim().replace(/^"|"$/g, '') || sender || 'Unknown sender'
 }
 
+/** Returns whether normalized text contains at least one configured phrase. */
 function includesAny(text: string, terms: string[]) {
   return terms.some((term) => text.includes(term))
 }
 
+/**
+ * Detects an actual rejection while excluding conditional phrases such as
+ * "if you are not selected" from application confirmations.
+ */
 function hasDefinitiveDenial(text: string) {
   return text
     .split(/[.!?\n]+/)
@@ -121,6 +137,9 @@ function hasDefinitiveDenial(text: string) {
     })
 }
 
+/**
+ * Detects a concrete interview request while excluding hypothetical next steps.
+ */
 function hasDefinitiveInterview(text: string) {
   return text
     .split(/[.!?\n]+/)
@@ -130,6 +149,10 @@ function hasDefinitiveInterview(text: string) {
     )
 }
 
+/**
+ * Classifies a likely job-search email by priority: denial, interview, applied.
+ * Returns `null` when the message lacks sufficient job-search evidence.
+ */
 function classifyEmail(subject: string, sender: string, paragraphs: string[]): JobStatus | null {
   const text = `${subject}\n${sender}\n${paragraphs.slice(0, 18).join(' ')}`.toLowerCase().slice(0, 30000)
   const hasJobContext = includesAny(text, JOB_CONTEXT_TERMS)
@@ -139,16 +162,21 @@ function classifyEmail(subject: string, sender: string, paragraphs: string[]): J
   return null
 }
 
+/** Converts an HTML date value into the slash form accepted by Gmail search. */
 function formatGmailDate(value: string) {
   return value.replaceAll('-', '/')
 }
 
+/** Returns the next UTC date so Gmail's exclusive `before:` filter is inclusive. */
 function dayAfter(value: string) {
   const [year, month, day] = value.split('-').map(Number)
   const date = new Date(Date.UTC(year, month - 1, day + 1))
   return date.toISOString().slice(0, 10)
 }
 
+/**
+ * Builds the Gmail search expression for job-related signals and a lookback range.
+ */
 function buildSearchQuery(range: RangeKey, customRange: CustomDateRange) {
   const jobSignals = [
     'subject:application', 'subject:interview', 'subject:candidate', 'subject:position',
@@ -164,6 +192,11 @@ function buildSearchQuery(range: RangeKey, customRange: CustomDateRange) {
   return `-from:me {${jobSignals}}${dateFilter}`
 }
 
+/**
+ * Calls an authenticated Gmail API endpoint and converts API failures to errors.
+ * @param path Path relative to `/gmail/v1/users/me`.
+ * @param token Short-lived Google OAuth bearer token.
+ */
 export async function gmailFetch<T>(path: string, token: string): Promise<T> {
   const response = await fetch(`${GMAIL_API}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -175,6 +208,10 @@ export async function gmailFetch<T>(path: string, token: string): Promise<T> {
   return response.json() as Promise<T>
 }
 
+/**
+ * Pages through possible job-search messages up to `MAX_CANDIDATE_EMAILS`.
+ * Returns message IDs plus a flag indicating that newer matches were truncated.
+ */
 export async function listCandidateIds(token: string, range: RangeKey, customRange: CustomDateRange) {
   const ids: string[] = []
   let pageToken = ''
@@ -191,6 +228,10 @@ export async function listCandidateIds(token: string, range: RangeKey, customRan
   return { ids: ids.slice(0, MAX_CANDIDATE_EMAILS), isTruncated: Boolean(pageToken) }
 }
 
+/**
+ * Normalizes and classifies one Gmail message for the UI, or returns `null` when
+ * it is not relevant to the job-search tracker.
+ */
 export function formatEmail(message: GmailMessage): Email | null {
   const paragraphs = toParagraphs(message)
   const subject = getHeader(message, 'Subject') || '(No subject)'

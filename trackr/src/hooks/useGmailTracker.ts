@@ -26,6 +26,7 @@ type PersistedSession = {
   isTruncated: boolean
 }
 
+/** Formats a local date as the `YYYY-MM-DD` value used by HTML date inputs. */
 function formatInputDate(date: Date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -33,6 +34,7 @@ function formatInputDate(date: Date) {
   return `${year}-${month}-${day}`
 }
 
+/** Creates the initial custom range spanning the previous three months. */
 function getDefaultCustomRange(): CustomDateRange {
   const end = new Date()
   const start = new Date()
@@ -40,10 +42,15 @@ function getDefaultCustomRange(): CustomDateRange {
   return { start: formatInputDate(start), end: formatInputDate(end) }
 }
 
+/** Validates that both custom dates exist and are in chronological order. */
 function isValidCustomRange(range: CustomDateRange) {
   return Boolean(range.start && range.end && range.start <= range.end)
 }
 
+/**
+ * Restores valid manual status corrections for one account from this tab.
+ * Malformed or unavailable browser storage is treated as an empty collection.
+ */
 function readSavedOverrides(accountEmail: string) {
   try {
     const saved = sessionStorage.getItem(`trackr-status:${accountEmail}`)
@@ -57,6 +64,10 @@ function readSavedOverrides(accountEmail: string) {
   }
 }
 
+/**
+ * Restores an unexpired tab session and discards expired or malformed state.
+ * An expired access token is removed without discarding cached email previews.
+ */
 function readPersistedSession(): PersistedSession | null {
   try {
     const saved = sessionStorage.getItem(SESSION_KEY)
@@ -80,6 +91,10 @@ function readPersistedSession(): PersistedSession | null {
   }
 }
 
+/**
+ * Owns Google authorization, Gmail scanning, classification state, tab-scoped
+ * persistence, automatic refresh, manual corrections, and disconnect behavior.
+ */
 export function useGmailTracker() {
   const [initialSession] = useState(readPersistedSession)
   const tokenClient = useRef<TokenClient | null>(null)
@@ -131,6 +146,7 @@ export function useGmailTracker() {
 
   useEffect(() => {
     if (!selectedEmail) return
+    /** Closes the active email preview when the user presses Escape. */
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setSelectedEmail(null)
     }
@@ -138,6 +154,10 @@ export function useGmailTracker() {
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [selectedEmail])
 
+  /**
+   * Scans one Gmail range in cancellable batches, classifies relevant messages,
+   * and replaces the visible board only when this request is still current.
+   */
   const loadInbox = useCallback(async (
     token: string,
     range: RangeKey,
@@ -187,6 +207,7 @@ export function useGmailTracker() {
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return
     const clientId = GOOGLE_CLIENT_ID
+    /** Initializes the Google Identity Services token client once its script loads. */
     const initializeGoogle = () => {
       if (!window.google) return false
       tokenClient.current = window.google.accounts.oauth2.initTokenClient({
@@ -252,12 +273,14 @@ export function useGmailTracker() {
     ]),
   ) as Record<JobStatus, Email[]>, [emails, overrides])
 
+  /** Starts initial consent or a lightweight token renewal for a cached account. */
   const signIn = () => {
     setError('')
     setIsLoading(true)
     tokenClient.current?.requestAccessToken({ prompt: accountEmail ? '' : 'consent' })
   }
 
+  /** Returns the current unexpired token and clears stale token state. */
   const getUsableAccessToken = () => {
     if (accessToken.current && accessTokenExpiresAt.current > Date.now()) {
       return accessToken.current
@@ -266,6 +289,7 @@ export function useGmailTracker() {
     return null
   }
 
+  /** Manually rescans the selected range, renewing Google access when necessary. */
   const refreshInbox = async () => {
     if (dateRange === 'custom' && !isValidCustomRange(customDateRange)) {
       setError('Choose a valid start and end date before refreshing.')
@@ -276,6 +300,7 @@ export function useGmailTracker() {
     else signIn()
   }
 
+  /** Applies a preset lookback range and immediately scans when access is valid. */
   const changeRange = async (range: RangeKey) => {
     setDateRange(range)
     const token = getUsableAccessToken()
@@ -287,6 +312,7 @@ export function useGmailTracker() {
     }
   }
 
+  /** Validates and scans the user-supplied custom date range. */
   const applyCustomDateRange = async () => {
     if (!isValidCustomRange(customDateRange)) {
       setError('Choose a valid start and end date.')
@@ -300,6 +326,7 @@ export function useGmailTracker() {
     }
   }
 
+  /** Saves a user's manual classification correction for the current tab session. */
   const moveEmail = (id: string, status: JobStatus) => {
     setOverrides((current) => {
       const updated = { ...current, [id]: status }
@@ -314,6 +341,7 @@ export function useGmailTracker() {
     })
   }
 
+  /** Revokes Google access and clears all Gmail-derived state from this tab. */
   const disconnect = () => {
     requestVersion.current += 1
     if (accessToken.current && window.google) window.google.accounts.oauth2.revoke(accessToken.current)

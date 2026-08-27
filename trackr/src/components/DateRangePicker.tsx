@@ -7,6 +7,7 @@ type DateRangePickerProps = {
   value: CustomDateRange
 }
 
+/** Returns today's local calendar date in the format required by date inputs. */
 function today() {
   const date = new Date()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -14,6 +15,9 @@ function today() {
   return `${date.getFullYear()}-${month}-${day}`
 }
 
+/**
+ * Collects and validates an inclusive custom date range before requesting a scan.
+ */
 export function DateRangePicker({ disabled, onApply, onChange, value }: DateRangePickerProps) {
   const isInvalid = !value.start || !value.end || value.start > value.end
 

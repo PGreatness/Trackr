@@ -5,6 +5,9 @@ type EmailFilterBarProps = {
   visibleCount: number
 }
 
+/**
+ * Renders the client-side email search control and the current match count.
+ */
 export function EmailFilterBar({ onChange, totalCount, value, visibleCount }: EmailFilterBarProps) {
   return (
     <div className="filter-bar" role="search">

@@ -5,6 +5,9 @@ type HeaderProps = {
   onToggleTheme: () => void
 }
 
+/**
+ * Renders Trackr's global navigation, theme control, and connected-account tools.
+ */
 export function Header({ accountEmail, darkMode, onDisconnect, onToggleTheme }: HeaderProps) {
   return (
     <header className="site-header">

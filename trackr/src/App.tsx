@@ -6,6 +6,10 @@ import { useGmailTracker } from './hooks/useGmailTracker'
 import { useTheme } from './hooks/useTheme'
 import './App.css'
 
+/**
+ * Composes the Trackr shell and switches between the sign-in and tracker views.
+ * Gmail state is owned by `useGmailTracker`; theme state is owned by `useTheme`.
+ */
 function App() {
   const theme = useTheme()
   const tracker = useGmailTracker()

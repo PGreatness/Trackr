@@ -4,6 +4,7 @@ import type { CustomDateRange, Email, JobStatus, RangeKey, ScanProgress } from '
 import { DateRangePicker } from './DateRangePicker'
 import { EmailFilterBar } from './EmailFilterBar'
 
+/** Builds a Gmail web URL for the supplied message thread and account. */
 function getGmailUrl(accountEmail: string, email: Email) {
   const conversationId = email.threadId || email.id
   return `https://mail.google.com/mail/u/?authuser=${encodeURIComponent(accountEmail)}#all/${encodeURIComponent(conversationId)}`
@@ -27,6 +28,10 @@ type TrackerBoardProps = {
   scanProgress: ScanProgress
 }
 
+/**
+ * Renders range controls, visual filtering, and the three job-status columns.
+ * Filtering is local and never causes a Gmail request or page refresh.
+ */
 export function TrackerBoard({
   accountEmail,
   customDateRange,

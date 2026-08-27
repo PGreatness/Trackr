@@ -1,3 +1,7 @@
+/**
+ * Applies the saved or operating-system theme before React and its styles load,
+ * preventing a light-theme flash during dark-theme page loads.
+ */
 (() => {
   let savedTheme = null
   try {

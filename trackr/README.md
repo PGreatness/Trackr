@@ -1,32 +1,84 @@
 # Trackr
 
-Trackr is a Vite + React app that uses read-only Gmail access to organize job-search mail into Applied, Interview requested, and Denied columns. Gmail messages are fetched directly from Google and processed in the user's browser; Trackr has no application server or database.
+Trackr is a Vite and React application that turns read-only Gmail messages into a job-search pipeline. Relevant messages are classified into Applied, Interview requested, and Denied columns. Users can preview messages, visually filter the board, choose a lookback range, and correct classifications without changing anything in Gmail.
 
-## Local development
+Gmail messages are fetched directly from Google and processed in the user's browser. Trackr has no application server or database.
 
-1. Enable the Gmail API in a Google Cloud project.
-2. Configure the OAuth consent screen and add `https://www.googleapis.com/auth/gmail.readonly`.
-3. Create a Web application OAuth client.
-4. Add `http://localhost:5173` under Authorized JavaScript origins.
-5. Copy `.env.example` to `.env.local` and set `VITE_GOOGLE_CLIENT_ID`.
-6. If the consent screen is in Testing mode, add each account under Test users.
-7. Run `npm ci` and `npm run dev`.
+## Documentation
 
-The OAuth client ID is a public browser identifier. Never add a Google client secret, access token, refresh token, or downloaded credentials file to this project.
+- [Architecture](docs/ARCHITECTURE.md) — system boundaries, data flow, source layout, scanning, and session lifecycle
+- [Function reference](docs/FUNCTION_REFERENCE.md) — every named function, component, hook, and helper
+- [Configuration and types](docs/CONFIGURATION_AND_TYPES.md) — constants, data contracts, environment, Blueprint, and public assets
+- [Email classification](docs/CLASSIFICATION.md) — candidate search, rule priority, conditional-language protections, and extensions
+- [Google OAuth](docs/GOOGLE_OAUTH.md) — cloud setup, test users, origins, verification, and common errors
+- [Render deployment](docs/RENDER_DEPLOYMENT.md) — Blueprint deployment, custom domains, headers, and release checks
+- [Security and privacy](docs/SECURITY_AND_PRIVACY.md) — data inventory, retention, MIME handling, network boundaries, and logout
+- [Contributing](docs/CONTRIBUTING.md) — development workflow and mandatory function-documentation policy
 
-## Privacy and session behavior
+The public-facing [Privacy Policy](public/privacy.html) and [Terms of Service](public/terms.html) are deployed with the application.
 
-The Google access token, email previews, account address, and manual classifications are stored only in the current tab's `sessionStorage`. They survive a page refresh but are cleared when the tab closes, the user disconnects, or the 24-hour session expires. Only the light/dark theme preference uses persistent browser storage. Gmail data is never sent to Render or an application backend.
+## Features
 
-## Render deployment
+- Google Identity Services browser authorization
+- Read-only Gmail access through `gmail.readonly`
+- Maximum scan of 1,500 candidate messages
+- One, three, six, twelve, and twenty-four-month presets; all-time and custom ranges
+- Rule-based job-email classification with conditional-language protection
+- Scrollable status columns and read-only email previews
+- Manual status corrections for the current tab session
+- Interview-request links that open the original Gmail thread
+- Instant client-side sender, subject, and content filtering
+- Fifteen-minute automatic refresh while the token remains valid
+- Refresh-safe, tab-scoped sessions with a 24-hour maximum lifetime
+- Light and dark themes without a first-paint flash
+- Render security headers, legal pages, logo, favicon, and touch icon
 
-The repository-root `render.yaml` defines a Render Static Site with the correct root directory, build command, publish directory, environment variable, caching, and security headers.
+## Requirements
 
-1. Push the repository to GitHub, GitLab, or Bitbucket.
-2. In Render, choose **New > Blueprint** and connect the repository.
-3. Keep the default Blueprint path `render.yaml`.
-4. When prompted, set `VITE_GOOGLE_CLIENT_ID` to the Web application OAuth client ID.
-5. Deploy the Blueprint.
-6. Add the resulting `https://YOUR-SERVICE.onrender.com` URL to the OAuth client's Authorized JavaScript origins.
+- Node.js `>=22.12.0 <25`
+- npm
+- A Google Cloud project with Gmail API enabled
+- A Web application OAuth client
 
-For a public production launch, use a custom domain and add that HTTPS origin to Google Cloud. Configure the OAuth consent screen with the deployed home page, `/privacy.html`, `/terms.html`, the developer support email, and the verified domain. Because `gmail.readonly` is a restricted scope, complete Google's OAuth verification before opening the app beyond approved test users.
+## Local setup
+
+1. In Google Cloud, enable the Gmail API.
+2. Configure Google Auth Platform with an External audience or an appropriate Workspace Internal audience.
+3. Add `https://www.googleapis.com/auth/gmail.readonly` under Data Access.
+4. Create a Web application OAuth client.
+5. Add `http://localhost:5173` as an Authorized JavaScript origin.
+6. Copy `.env.example` to `.env.local` and enter the client ID.
+7. If the app is in Testing, add each Google account under Audience → Test users.
+8. Install and start the app:
+
+```bash
+npm ci
+npm run dev
+```
+
+The OAuth client ID is a public browser identifier. Never add a client secret, access token, refresh token, `credentials.json`, or `token.json` to the project.
+
+## Environment
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `VITE_GOOGLE_CLIENT_ID` | Yes | Google Web application OAuth client ID embedded at build time |
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite development server |
+| `npm run build` | Type-check and create the production bundle in `dist/` |
+| `npm run lint` | Run ESLint across the project |
+| `npm run preview` | Serve the production bundle locally |
+
+## Privacy summary
+
+The Google token, Gmail address, email previews, and manual classifications stay in memory and the current tab's `sessionStorage`. They survive page refresh, but are cleared when the tab closes, the user disconnects, or the 24-hour session expires. Only the theme preference uses persistent `localStorage`.
+
+## Deploying
+
+The repository-root `render.yaml` defines the Render Static Site. Push the repository, create a Render Blueprint, provide `VITE_GOOGLE_CLIENT_ID`, and deploy. After Render assigns an HTTPS URL, add the exact origin to the Google OAuth client. See [Render deployment](docs/RENDER_DEPLOYMENT.md) and [Google OAuth](docs/GOOGLE_OAUTH.md) for the complete checklist.
+
+Because `gmail.readonly` is a restricted scope, a public app should complete Google's OAuth brand and restricted-scope verification. Testing mode is appropriate for explicitly listed friends and development accounts.
