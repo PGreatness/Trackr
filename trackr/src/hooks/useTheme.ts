@@ -5,11 +5,13 @@ import { useEffect, useState } from 'react'
  * preference in local storage. The early `theme-init.js` script prevents flash.
  */
 export function useTheme() {
+  // The head script sets this attribute before React mounts, preventing a light-mode flash.
   const [darkMode, setDarkMode] = useState(
     () => document.documentElement.dataset.theme === 'dark',
   )
 
   useEffect(() => {
+    // Keep CSS variables, browser chrome, and the durable preference synchronized.
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
     document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
       ?.setAttribute('content', darkMode ? '#111713' : '#f5f7f3')

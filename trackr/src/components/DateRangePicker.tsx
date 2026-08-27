@@ -9,6 +9,7 @@ type DateRangePickerProps = {
 
 /** Returns today's local calendar date in the format required by date inputs. */
 function today() {
+  // Use local calendar fields so users near UTC boundaries do not see tomorrow or yesterday.
   const date = new Date()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
@@ -19,6 +20,7 @@ function today() {
  * Collects and validates an inclusive custom date range before requesting a scan.
  */
 export function DateRangePicker({ disabled, onApply, onChange, value }: DateRangePickerProps) {
+  // The button guard complements input min/max constraints for keyboard and programmatic values.
   const isInvalid = !value.start || !value.end || value.start > value.end
 
   return (

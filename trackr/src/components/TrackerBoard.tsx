@@ -6,6 +6,7 @@ import { EmailFilterBar } from './EmailFilterBar'
 
 /** Builds a Gmail web URL for the supplied message thread and account. */
 function getGmailUrl(accountEmail: string, email: Email) {
+  // Prefer the thread so a user responding from Gmail sees the complete conversation.
   const conversationId = email.threadId || email.id
   return `https://mail.google.com/mail/u/?authuser=${encodeURIComponent(accountEmail)}#all/${encodeURIComponent(conversationId)}`
 }
@@ -49,6 +50,7 @@ export function TrackerBoard({
   overrides,
   scanProgress,
 }: TrackerBoardProps) {
+  // Filtering is derived from immutable scan results; the original grouped arrays remain intact.
   const [filterQuery, setFilterQuery] = useState('')
   const normalizedQuery = filterQuery.trim().toLocaleLowerCase()
   const filteredEmails = useMemo(() => Object.fromEntries(

@@ -52,6 +52,7 @@ const CONDITIONAL_INTERVIEW_MARKERS = [
 
 /** Decodes Gmail's URL-safe base64 message-body representation as UTF-8 text. */
 function decodeBase64Url(value: string) {
+  // Gmail omits standard base64 characters in favor of URL-safe equivalents.
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/')
   const bytes = Uint8Array.from(atob(normalized), (character) => character.charCodeAt(0))
   return new TextDecoder().decode(bytes)
@@ -59,6 +60,7 @@ function decodeBase64Url(value: string) {
 
 /** Recursively returns the first HTML body found in a MIME message tree. */
 function findHtmlBody(part?: GmailMessagePart): { content: string; isHtml: true } | null {
+  // Multipart messages can nest several levels, so walk the complete MIME tree.
   if (!part) return null
   if (part.mimeType === 'text/html' && part.body?.data) {
     return { content: decodeBase64Url(part.body.data), isHtml: true }
@@ -74,6 +76,7 @@ function findHtmlBody(part?: GmailMessagePart): { content: string; isHtml: true 
  * Recursively prefers a plain-text MIME body and falls back to an HTML body.
  */
 function findBody(part?: GmailMessagePart): { content: string; isHtml: boolean } | null {
+  // Plain text is safer and usually cleaner, so HTML is used only as a final fallback.
   if (!part) return null
   if (part.mimeType === 'text/plain' && part.body?.data) {
     return { content: decodeBase64Url(part.body.data), isHtml: false }
@@ -90,9 +93,11 @@ function findBody(part?: GmailMessagePart): { content: string; isHtml: boolean }
  * executable and styling elements when the source is HTML.
  */
 function toParagraphs(message: GmailMessage) {
+  // Gmail snippets keep the preview usable when a body part is missing or unsupported.
   const body = findBody(message.payload)
   let content = body?.content ?? message.snippet ?? 'This message has no readable text content.'
   if (body?.isHtml) {
+    // Convert untrusted email markup to text without ever mounting it in the application DOM.
     const document = new DOMParser().parseFromString(content, 'text/html')
     document.querySelectorAll('script, style, noscript').forEach((element) => element.remove())
     content = document.body.textContent ?? ''
@@ -107,17 +112,20 @@ function toParagraphs(message: GmailMessage) {
 
 /** Looks up a Gmail header case-insensitively and returns an empty fallback. */
 function getHeader(message: GmailMessage, name: string) {
+  // Header casing is not guaranteed by MIME, so comparisons must be case-insensitive.
   return message.payload?.headers?.find((header) => header.name.toLowerCase() === name.toLowerCase())?.value ?? ''
 }
 
 /** Extracts a readable display name from a standard RFC-style sender header. */
 function formatSender(sender: string) {
+  // Preserve the full address when no human-readable display name is present.
   const nameMatch = sender.match(/^([^<]+)</)
   return nameMatch?.[1].trim().replace(/^"|"$/g, '') || sender || 'Unknown sender'
 }
 
 /** Returns whether normalized text contains at least one configured phrase. */
 function includesAny(text: string, terms: string[]) {
+  // Callers normalize case once before performing repeated phrase checks.
   return terms.some((term) => text.includes(term))
 }
 
@@ -126,6 +134,7 @@ function includesAny(text: string, terms: string[]) {
  * "if you are not selected" from application confirmations.
  */
 function hasDefinitiveDenial(text: string) {
+  // Sentence-level checks prevent a real denial elsewhere from being masked by conditional copy.
   return text
     .split(/[.!?\n]+/)
     .some((sentence) => {
@@ -141,6 +150,7 @@ function hasDefinitiveDenial(text: string) {
  * Detects a concrete interview request while excluding hypothetical next steps.
  */
 function hasDefinitiveInterview(text: string) {
+  // A hiring-process description is not an invitation unless its sentence is definitive.
   return text
     .split(/[.!?\n]+/)
     .some((sentence) =>
@@ -154,8 +164,10 @@ function hasDefinitiveInterview(text: string) {
  * Returns `null` when the message lacks sufficient job-search evidence.
  */
 function classifyEmail(subject: string, sender: string, paragraphs: string[]): JobStatus | null {
+  // Limit inspected content to keep classification predictable on extremely long messages.
   const text = `${subject}\n${sender}\n${paragraphs.slice(0, 18).join(' ')}`.toLowerCase().slice(0, 30000)
   const hasJobContext = includesAny(text, JOB_CONTEXT_TERMS)
+  // Specific terminal outcomes take priority over generic application acknowledgements.
   if (hasDefinitiveDenial(text) && hasJobContext) return 'denied'
   if (hasDefinitiveInterview(text) && hasJobContext) return 'interview'
   if (includesAny(text, APPLIED_TERMS)) return 'applied'
@@ -164,11 +176,13 @@ function classifyEmail(subject: string, sender: string, paragraphs: string[]): J
 
 /** Converts an HTML date value into the slash form accepted by Gmail search. */
 function formatGmailDate(value: string) {
+  // Gmail search accepts slash-delimited absolute dates independent of display locale.
   return value.replaceAll('-', '/')
 }
 
 /** Returns the next UTC date so Gmail's exclusive `before:` filter is inclusive. */
 function dayAfter(value: string) {
+  // Gmail's `before:` operator is exclusive, so advance one day for an inclusive UI range.
   const [year, month, day] = value.split('-').map(Number)
   const date = new Date(Date.UTC(year, month - 1, day + 1))
   return date.toISOString().slice(0, 10)
@@ -178,6 +192,7 @@ function dayAfter(value: string) {
  * Builds the Gmail search expression for job-related signals and a lookback range.
  */
 function buildSearchQuery(range: RangeKey, customRange: CustomDateRange) {
+  // Search broadly in Gmail, then apply stricter content rules locally.
   const jobSignals = [
     'subject:application', 'subject:interview', 'subject:candidate', 'subject:position',
     'subject:role', 'subject:hiring', 'subject:recruiter', 'subject:assessment',
@@ -198,10 +213,12 @@ function buildSearchQuery(range: RangeKey, customRange: CustomDateRange) {
  * @param token Short-lived Google OAuth bearer token.
  */
 export async function gmailFetch<T>(path: string, token: string): Promise<T> {
+  // The bearer token is sent only to Google's fixed Gmail API origin.
   const response = await fetch(`${GMAIL_API}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!response.ok) {
+    // Prefer Google's diagnostic while retaining a status-based fallback for non-JSON errors.
     const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null
     throw new Error(payload?.error?.message || `Gmail returned ${response.status}.`)
   }
@@ -213,9 +230,11 @@ export async function gmailFetch<T>(path: string, token: string): Promise<T> {
  * Returns message IDs plus a flag indicating that newer matches were truncated.
  */
 export async function listCandidateIds(token: string, range: RangeKey, customRange: CustomDateRange) {
+  // Retain only IDs during pagination to minimize memory before full-message retrieval.
   const ids: string[] = []
   let pageToken = ''
   do {
+    // Gmail permits at most 100 list results per request in this scan path.
     const query = new URLSearchParams({ maxResults: '100', q: buildSearchQuery(range, customRange) })
     if (pageToken) query.set('pageToken', pageToken)
     const page = await gmailFetch<{ messages?: { id: string }[]; nextPageToken?: string }>(
@@ -233,10 +252,12 @@ export async function listCandidateIds(token: string, range: RangeKey, customRan
  * it is not relevant to the job-search tracker.
  */
 export function formatEmail(message: GmailMessage): Email | null {
+  // Normalize content once so both classification and presentation use identical text.
   const paragraphs = toParagraphs(message)
   const subject = getHeader(message, 'Subject') || '(No subject)'
   const sender = formatSender(getHeader(message, 'From'))
   const autoStatus = classifyEmail(subject, sender, paragraphs)
+  // Irrelevant candidates are discarded before they reach React or session storage.
   if (!autoStatus) return null
   const timestamp = Number(message.internalDate)
   return {

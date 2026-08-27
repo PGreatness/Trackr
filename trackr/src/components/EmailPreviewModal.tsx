@@ -12,6 +12,7 @@ type EmailPreviewModalProps = {
  * Displays a read-only email body and lets the user correct its job status.
  */
 export function EmailPreviewModal({ email, onClose, onMoveEmail, status }: EmailPreviewModalProps) {
+  // Paragraphs are rendered as React text nodes; raw email HTML is never injected.
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose()

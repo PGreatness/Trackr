@@ -9,6 +9,7 @@ type HeaderProps = {
  * Renders Trackr's global navigation, theme control, and connected-account tools.
  */
 export function Header({ accountEmail, darkMode, onDisconnect, onToggleTheme }: HeaderProps) {
+  // Account controls are omitted entirely while signed out to avoid presenting stale identity.
   return (
     <header className="site-header">
       <a className="brand" href="#top" aria-label="Trackr home">

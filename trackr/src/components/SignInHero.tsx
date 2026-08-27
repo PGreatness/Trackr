@@ -10,6 +10,7 @@ type SignInHeroProps = {
  * Presents the signed-out landing experience and starts Google authorization.
  */
 export function SignInHero({ error, isConfigured, isGoogleReady, isLoading, onSignIn }: SignInHeroProps) {
+  // Sign-in remains disabled until both the client ID and Google's browser library are ready.
   return (
     <section className="hero" id="top">
       <div className="eyebrow"><span /> Your job search, sorted</div>

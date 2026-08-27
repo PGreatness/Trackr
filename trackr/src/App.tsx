@@ -11,6 +11,7 @@ import './App.css'
  * Gmail state is owned by `useGmailTracker`; theme state is owned by `useTheme`.
  */
 function App() {
+  // Keep authentication and theme side effects in hooks so this component only composes views.
   const theme = useTheme()
   const tracker = useGmailTracker()
 

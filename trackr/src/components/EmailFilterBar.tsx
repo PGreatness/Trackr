@@ -9,6 +9,7 @@ type EmailFilterBarProps = {
  * Renders the client-side email search control and the current match count.
  */
 export function EmailFilterBar({ onChange, totalCount, value, visibleCount }: EmailFilterBarProps) {
+  // This controlled input changes only local board visibility and never triggers Gmail traffic.
   return (
     <div className="filter-bar" role="search">
       <label htmlFor="email-filter">
